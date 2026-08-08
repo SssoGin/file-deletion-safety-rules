@@ -1,72 +1,93 @@
-# 文件安全删除规则
+# File Deletion Safety Rules
 
-面向 Windows 上 Codex、Claude 和 OpenCode 的可移植文件删除安全规则包。
+**English** | [简体中文](README.zh-CN.md)
 
-本包提供三种明确模式：
+A portable Windows safety policy package for file deletion operations performed by Codex, Claude, and OpenCode.
 
-- 普通“删除/清理/移除”：移入同卷隔离目录，可恢复但不释放空间；
-- “移到回收站”：仅在真实交互式 Windows 用户会话、当前身份与同 Session Explorer 一致且所有回收站证据可验证时执行；
-- “永久删除/彻底删除/清理空间”：必须展示精确清单并再次确认，不进入回收站且不可由 Agent 恢复。
+The package defines three explicit modes:
 
-## 重要兼容性边界
+- Ordinary "delete / clean / remove" requests move confirmed targets to a same-volume quarantine. This is recoverable but does not free disk space.
+- "Move to Recycle Bin" is available only in a real interactive Windows user session where the current identity matches Explorer in the same session and all Recycle Bin evidence can be verified.
+- "Permanently delete / clean up disk space" requires an exact target list and a separate confirmation. It bypasses the Recycle Bin and cannot be restored by the Agent.
 
-自动回收站是环境相关能力。在 Agent 沙箱、服务会话、无同 Session Explorer、身份不一致、网络路径或回收站策略无法验证时，本模式会安全停止。这不是安装失败，也不会改用永久删除命令。
+## Important compatibility boundary
 
-本包不包含桌面桥接、常驻服务、计划任务、管理员提权、网络监听或永久删除回退。
+Automatic Recycle Bin support depends on the runtime environment. It fails closed in Agent sandboxes, service sessions, sessions without a matching Explorer process, identity mismatches, network paths, and systems whose Recycle Bin policy cannot be verified. This is not an installation failure and never falls back to permanent deletion.
 
-## 目录
+This package does not install a desktop bridge, persistent service, scheduled task, administrator elevation mechanism, network listener, or permanent-delete fallback.
+
+## Session switch
+
+File deletion safety rules default to `ON` in every new chat or session. You can give the Agent these direct commands:
+
+- `Disable file deletion safety rules` or `关闭文件安全删除规则`: switch to `OFF`;
+- `Enable file deletion safety rules` or `启用文件安全删除规则`: restore `ON`;
+- `Query file deletion safety rules status` or `查询文件安全删除规则状态`: report the current state without changing it.
+
+Clear equivalent wording is also accepted. Questions, quotations, negated statements, or ambiguous wording must not switch the state.
+
+`OFF` applies only to the current chat or session. It is not written to disk and is not shared across Codex, Claude, OpenCode, or other Agents. A new session, a different Agent, or ambiguous restored context defaults back to `ON`. A switch affects only operations that have not started. System, platform, permission, project, and other user rules remain in force.
+
+## Package layout
 
 ```text
-policy/file-deletion-safety.md       完整策略
-helpers/Recycle-Bin-Only.ps1         固定哈希回收站 helper
-adapters/*.md                        三端全局规则片段
-scripts/Install-FileDeletionSafetyRules.ps1  预览/安装
-scripts/Verify-FileDeletionSafetyRules.ps1   安装验证
-scripts/Uninstall-FileDeletionSafetyRules.ps1 预览/卸载
-tests/Test-Package.ps1               静态包验证
-manifest.json                        安装清单
+README.md                              Default English documentation
+README.zh-CN.md                        Simplified Chinese documentation
+RELEASE_NOTES.md                       Bilingual release notes
+policy/file-deletion-safety.md         Complete policy
+helpers/Recycle-Bin-Only.ps1           Hash-pinned Recycle Bin helper
+adapters/*.md                          Global rule snippets for three tools
+scripts/Install-FileDeletionSafetyRules.ps1    Preview / install
+scripts/Verify-FileDeletionSafetyRules.ps1     Installation verification
+scripts/Uninstall-FileDeletionSafetyRules.ps1  Preview / uninstall
+tests/Test-Package.ps1                 Static package validation
+manifest.json                          Installation manifest
 ```
 
-## 获取
+## Get the package
 
 ```powershell
 git clone https://github.com/SssoGin/file-deletion-safety-rules.git
 Set-Location .\file-deletion-safety-rules
 ```
 
-也可以从 GitHub 下载源码 ZIP，解压后让 Agent 先运行安装预览。
+You can also download the source ZIP from GitHub, extract it, and ask your Agent to run the installation preview first.
 
-## 让 Agent 安装
+## Ask an Agent to install it
 
-先让 Agent 运行预览，不允许直接应用：
+Run Preview first. Do not apply changes before reviewing the plan:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\Install-FileDeletionSafetyRules.ps1 -Mode Preview -Tool All
 ```
 
-检查目标文件、共享策略位置和将插入的完整规则块。用户明确确认后再运行：
+Review the target files, shared policy location, and complete managed block. After explicit confirmation, run:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\Install-FileDeletionSafetyRules.ps1 -Mode Apply -Tool All
 pwsh -NoProfile -File .\scripts\Verify-FileDeletionSafetyRules.ps1 -Tool All
 ```
 
-可将 `All` 改为 `Codex`、`Claude` 或 `OpenCode`。安装器会从当前用户配置目录动态解析路径，不包含发布者的用户名或盘符。
+Replace `All` with `Codex`, `Claude`, or `OpenCode` when installing for one tool only. The installer resolves paths from the current user profile and does not contain the publisher's username or drive paths.
 
-## 卸载
+## Uninstall
 
-默认只预览：
+Preview by default:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\Uninstall-FileDeletionSafetyRules.ps1 -Mode Preview -Tool All
 ```
 
-明确确认后使用 `-Mode Apply`。默认只移除本包的 managed block；只有显式增加 `-RemoveSharedFiles` 且三端均已无 managed block 时，才移除共享策略和 helper。
+Use `-Mode Apply` only after explicit confirmation. The default uninstall removes only this package's managed block. Shared policy and helper files are removed only when `-RemoveSharedFiles` is explicitly supplied and no managed blocks remain in any supported tool configuration.
 
-## 回收站失败时
+## When automatic Recycle Bin mode is unavailable
 
-`EXPLORER_NOT_FOUND`、`SESSION_MISMATCH`、`IDENTITY_MISMATCH` 和 `IDENTITY_UNVERIFIABLE` 都表示当前 Agent 环境不支持自动回收站。Agent 必须保留原始错误码，明确说明没有移动任何文件，并让用户选择手动使用资源管理器或明确改用隔离模式。
+`EXPLORER_NOT_FOUND`, `SESSION_MISMATCH`, `IDENTITY_MISMATCH`, and `IDENTITY_UNVERIFIABLE` mean that the current Agent environment cannot safely automate the Recycle Bin. The Agent must preserve the raw error code, state that no files were moved, and let the user either use File Explorer manually or explicitly choose quarantine mode.
 
-## 许可证
+## Releases
 
-本项目采用 MIT License，详见 `LICENSE`。
+See [GitHub Releases](https://github.com/SssoGin/file-deletion-safety-rules/releases) for versions and release notes.
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE`.

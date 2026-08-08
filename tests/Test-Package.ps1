@@ -49,6 +49,31 @@ $canonicalIdentity =
     [string]::Equals([string] $manifest.name, 'file-deletion-safety-rules', [StringComparison]::Ordinal) -and
     [string]::Equals([string] $manifest.managedMarkers.begin, '<!-- FILE-DELETION-SAFETY-RULES:BEGIN -->', [StringComparison]::Ordinal) -and
     [string]::Equals([string] $manifest.managedMarkers.end, '<!-- FILE-DELETION-SAFETY-RULES:END -->', [StringComparison]::Ordinal)
+$readmePath = Join-Path $packageRoot 'README.md'
+$chineseReadmePath = Join-Path $packageRoot 'README.zh-CN.md'
+$releaseNotesPath = Join-Path $packageRoot 'RELEASE_NOTES.md'
+$documentationFilesExist =
+    (Test-Path -LiteralPath $readmePath -PathType Leaf) -and
+    (Test-Path -LiteralPath $chineseReadmePath -PathType Leaf) -and
+    (Test-Path -LiteralPath $releaseNotesPath -PathType Leaf)
+$englishReadme = if (Test-Path -LiteralPath $readmePath -PathType Leaf) { Get-Content -Raw -LiteralPath $readmePath } else { '' }
+$chineseReadme = if (Test-Path -LiteralPath $chineseReadmePath -PathType Leaf) { Get-Content -Raw -LiteralPath $chineseReadmePath } else { '' }
+$releaseNotes = if (Test-Path -LiteralPath $releaseNotesPath -PathType Leaf) { Get-Content -Raw -LiteralPath $releaseNotesPath } else { '' }
+$readmeLanguageLinks =
+    $englishReadme.Contains('[简体中文](README.zh-CN.md)') -and
+    $chineseReadme.Contains('[English](README.md)')
+$switchDocumentation =
+    $englishReadme.Contains('Disable file deletion safety rules') -and
+    $englishReadme.Contains('Enable file deletion safety rules') -and
+    $englishReadme.Contains('Query file deletion safety rules status') -and
+    $chineseReadme.Contains('关闭文件安全删除规则') -and
+    $chineseReadme.Contains('启用文件安全删除规则') -and
+    $chineseReadme.Contains('查询文件安全删除规则状态')
+$releaseNotesCandidate =
+    $releaseNotes.Contains('# v1.0.0') -and
+    $releaseNotes.Contains('## English') -and
+    $releaseNotes.Contains('## 简体中文') -and
+    $releaseNotes.Contains($manifest.helper.sha256)
 
 $checks = @(
     [pscustomobject]@{ Check = 'ScriptParser'; Passed = $parserErrors.Count -eq 0; Detail = $parserErrors },
@@ -58,7 +83,11 @@ $checks = @(
     [pscustomobject]@{ Check = 'NoPublisherUserPath'; Passed = $privatePathHits.Count -eq 0; Detail = @($privatePathHits | ForEach-Object { $_.Path }) },
     [pscustomobject]@{ Check = 'NoDesktopBridge'; Passed = $bridgeHits.Count -eq 0; Detail = @($bridgeHits | ForEach-Object { $_.Path }) },
     [pscustomobject]@{ Check = 'CanonicalPackageIdentity'; Passed = $canonicalIdentity; Detail = [string] $manifest.name },
-    [pscustomobject]@{ Check = 'NoLegacyPackageIdentity'; Passed = $legacyHits.Count -eq 0; Detail = @($legacyHits | ForEach-Object { $_.Path }) }
+    [pscustomobject]@{ Check = 'NoLegacyPackageIdentity'; Passed = $legacyHits.Count -eq 0; Detail = @($legacyHits | ForEach-Object { $_.Path }) },
+    [pscustomobject]@{ Check = 'DocumentationFiles'; Passed = $documentationFilesExist; Detail = @($readmePath, $chineseReadmePath, $releaseNotesPath) },
+    [pscustomobject]@{ Check = 'ReadmeLanguageLinks'; Passed = $readmeLanguageLinks; Detail = @($readmePath, $chineseReadmePath) },
+    [pscustomobject]@{ Check = 'SessionSwitchDocumentation'; Passed = $switchDocumentation; Detail = @($readmePath, $chineseReadmePath) },
+    [pscustomobject]@{ Check = 'ReleaseNotesCandidate'; Passed = $releaseNotesCandidate; Detail = $releaseNotesPath }
 )
 $passed = @($checks | Where-Object { -not $_.Passed }).Count -eq 0
 [pscustomobject]@{ Passed = $passed; Checks = $checks } | ConvertTo-Json -Depth 8
