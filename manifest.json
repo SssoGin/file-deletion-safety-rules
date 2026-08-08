@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "name": "file-deletion-safety-rules",
+  "displayName": "文件安全删除规则",
+  "platform": "windows",
+  "sharedInstallDirectory": ".agents",
+  "policy": {
+    "source": "policy/file-deletion-safety.md",
+    "installedName": "file-deletion-safety.md"
+  },
+  "helper": {
+    "source": "helpers/Recycle-Bin-Only.ps1",
+    "installedName": "Recycle-Bin-Only.ps1",
+    "sha256": "AF7E87EC8E5B6160E85A2E8EB069DF23D6A91B6BE81E8B434F36FCF516867128"
+  },
+  "managedMarkers": {
+    "begin": "<!-- FILE-DELETION-SAFETY-RULES:BEGIN -->",
+    "end": "<!-- FILE-DELETION-SAFETY-RULES:END -->"
+  },
+  "tools": {
+    "Codex": {
+      "config": ".codex/AGENTS.md",
+      "adapter": "adapters/codex.md"
+    },
+    "Claude": {
+      "config": ".claude/CLAUDE.md",
+      "adapter": "adapters/claude.md"
+    },
+    "OpenCode": {
+      "config": ".config/opencode/AGENTS.md",
+      "adapter": "adapters/opencode.md"
+    }
+  }
+}
