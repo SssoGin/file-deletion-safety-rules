@@ -17,6 +17,8 @@ param(
     [Parameter(Mandatory)]
     [long] $ExpectedBytes,
 
+    [string] $ExpectedMetadataFingerprint,
+
     [string[]] $ProtectedRoot = @(),
 
     [switch] $ValidateOnly
@@ -124,21 +126,61 @@ function Test-PathSameOrChild {
     return $candidatePath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)
 }
 
-function Get-TargetSnapshot {
+function Assert-TargetReparseSafe {
     param([Parameter(Mandatory)][System.IO.FileSystemInfo] $TargetItem)
 
+    if ($TargetItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        Stop-Safely -ErrorCode 'TARGET_REPARSE_POINT' -Message 'The target is a reparse point.'
+    }
+
+    $ancestorPath = Split-Path -Parent $TargetItem.FullName
+    while (-not [string]::IsNullOrEmpty($ancestorPath)) {
+        $ancestorItem = Get-Item -LiteralPath $ancestorPath -Force -ErrorAction Stop
+        if ($ancestorItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+            Stop-Safely -ErrorCode 'ANCESTOR_REPARSE_POINT' -Message "An ancestor is a reparse point: $ancestorPath"
+        }
+        $nextAncestor = Split-Path -Parent $ancestorPath
+        if ([string]::Equals($nextAncestor, $ancestorPath, [StringComparison]::OrdinalIgnoreCase)) { break }
+        $ancestorPath = $nextAncestor
+    }
+}
+
+function Get-MetadataFingerprint {
+    param([Parameter(Mandatory)][string[]] $Records)
+
+    $ordered = @($Records)
+    [Array]::Sort($ordered, [StringComparer]::Ordinal)
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($ordered -join "`n"))
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha256.ComputeHash($bytes))).Replace('-', '')
+    } finally {
+        $sha256.Dispose()
+    }
+}
+
+function Get-TargetSnapshot {
+    param(
+        [Parameter(Mandatory)][System.IO.FileSystemInfo] $TargetItem,
+        [switch] $ThrowOnUnsafe
+    )
+
     if (-not $TargetItem.PSIsContainer) {
+        $records = @('F|.|' + [string] $TargetItem.Length + '|' + [string] $TargetItem.LastWriteTimeUtc.Ticks)
         return [pscustomobject]@{
             Type = 'File'
             FileCount = [long] 1
             DirectoryCount = [long] 0
             Bytes = [long] $TargetItem.Length
+            Fingerprint = Get-MetadataFingerprint -Records $records
         }
     }
 
     $fileCount = [long] 0
     $directoryCount = [long] 1
     $byteCount = [long] 0
+    $records = [System.Collections.Generic.List[string]]::new()
+    $records.Add('D|.')
     $pendingDirectories = [System.Collections.Generic.Stack[string]]::new()
     $pendingDirectories.Push($TargetItem.FullName)
 
@@ -147,16 +189,23 @@ function Get-TargetSnapshot {
         $children = @(Get-ChildItem -LiteralPath $directoryPath -Force -ErrorAction Stop)
         foreach ($child in $children) {
             if ($child.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
-                Stop-Safely -ErrorCode 'DESCENDANT_REPARSE_POINT' -Message "A descendant is a reparse point: $($child.FullName)"
+                $message = "A descendant is a reparse point: $($child.FullName)"
+                if ($ThrowOnUnsafe) { throw $message }
+                Stop-Safely -ErrorCode 'DESCENDANT_REPARSE_POINT' -Message $message
             }
+            $relativePath = $child.FullName.Substring($TargetItem.FullName.Length).TrimStart([char[]]@('\', '/'))
             if ($child.PSIsContainer) {
                 $directoryCount++
+                $records.Add('D|' + [string] $relativePath.Length + ':' + $relativePath)
                 $pendingDirectories.Push($child.FullName)
             } elseif ($child -is [System.IO.FileInfo]) {
                 $fileCount++
                 $byteCount += [long] $child.Length
+                $records.Add('F|' + [string] $relativePath.Length + ':' + $relativePath + '|' + [string] $child.Length + '|' + [string] $child.LastWriteTimeUtc.Ticks)
             } else {
-                Stop-Safely -ErrorCode 'TARGET_ITEM_UNSUPPORTED' -Message "A descendant has an unsupported filesystem type: $($child.FullName)"
+                $message = "A descendant has an unsupported filesystem type: $($child.FullName)"
+                if ($ThrowOnUnsafe) { throw $message }
+                Stop-Safely -ErrorCode 'TARGET_ITEM_UNSUPPORTED' -Message $message
             }
         }
     }
@@ -166,18 +215,31 @@ function Get-TargetSnapshot {
         FileCount = $fileCount
         DirectoryCount = $directoryCount
         Bytes = $byteCount
+        Fingerprint = Get-MetadataFingerprint -Records @($records)
     }
 }
 
-function Get-RecycleMetadataNames {
+function Test-TargetSnapshotSame {
+    param(
+        [Parameter(Mandatory)][psobject] $Expected,
+        [Parameter(Mandatory)][psobject] $Actual
+    )
+
+    return [string]::Equals([string] $Expected.Type, [string] $Actual.Type, [StringComparison]::Ordinal) -and
+        [long] $Expected.FileCount -eq [long] $Actual.FileCount -and
+        [long] $Expected.DirectoryCount -eq [long] $Actual.DirectoryCount -and
+        [long] $Expected.Bytes -eq [long] $Actual.Bytes -and
+        [string]::Equals([string] $Expected.Fingerprint, [string] $Actual.Fingerprint, [StringComparison]::Ordinal)
+}
+
+function Get-RecycleEntryNames {
     param([Parameter(Mandatory)][string] $RecyclePath)
 
     if (-not (Test-Path -LiteralPath $RecyclePath -PathType Container)) {
         return @()
     }
     return @(
-        Get-ChildItem -LiteralPath $RecyclePath -Force -File -ErrorAction Stop |
-            Where-Object { $_.Name.StartsWith('$I', [StringComparison]::OrdinalIgnoreCase) } |
+        Get-ChildItem -LiteralPath $RecyclePath -Force -ErrorAction Stop |
             ForEach-Object { $_.Name }
     )
 }
@@ -214,6 +276,87 @@ function Read-RecycleMetadata {
         OriginalSize = $originalSize
         DeletedAtUtc = [DateTime]::FromFileTimeUtc($deletedFileTime)
     }
+}
+
+function Find-NewRecycleEvidence {
+    param(
+        [Parameter(Mandatory)][string] $RecyclePath,
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]] $EntryNamesBefore,
+        [Parameter(Mandatory)][string] $NormalizedPath,
+        [Parameter(Mandatory)][DateTime] $OperationStartedAtUtc,
+        [Parameter(Mandatory)][psobject] $Snapshot,
+        [int] $Attempts = 20,
+        [int] $DelayMilliseconds = 100
+    )
+
+    if ($Attempts -lt 1 -or $DelayMilliseconds -lt 0) {
+        throw 'Recycle evidence polling values are invalid.'
+    }
+
+    $beforeSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($entryName in $EntryNamesBefore) {
+        [void] $beforeSet.Add($entryName)
+    }
+
+    $matchingEvidence = @()
+    for ($attempt = 0; $attempt -lt $Attempts -and $matchingEvidence.Count -eq 0; $attempt++) {
+        if ($attempt -gt 0 -and $DelayMilliseconds -gt 0) {
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+
+        $entryNamesAfter = @(Get-RecycleEntryNames -RecyclePath $RecyclePath)
+        $newMetadataNames = @($entryNamesAfter | Where-Object {
+            $_.StartsWith('$I', [StringComparison]::OrdinalIgnoreCase) -and -not $beforeSet.Contains($_)
+        })
+        $matchingEvidence = @($newMetadataNames | ForEach-Object {
+            $metadataName = $_
+            if ($metadataName.Length -lt 3) {
+                return
+            }
+
+            $dataName = '$R' + $metadataName.Substring(2)
+            if ($beforeSet.Contains($dataName) -or -not ($entryNamesAfter -contains $dataName)) {
+                return
+            }
+
+            $metadataPath = Join-Path $RecyclePath $metadataName
+            $dataPath = Join-Path $RecyclePath $dataName
+            try {
+                $metadataItem = Get-Item -LiteralPath $metadataPath -Force -ErrorAction Stop
+                $dataItem = Get-Item -LiteralPath $dataPath -Force -ErrorAction Stop
+                if ($metadataItem.PSIsContainer -or
+                    ($metadataItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or
+                    ($dataItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                    return
+                }
+
+                $metadata = Read-RecycleMetadata -MetadataPath $metadataPath
+                $dataSnapshot = Get-TargetSnapshot -TargetItem $dataItem -ThrowOnUnsafe
+                $pathMatches = Test-PathSame $metadata.OriginalPath $NormalizedPath
+                $timeMatches = $metadata.DeletedAtUtc -ge $OperationStartedAtUtc.AddSeconds(-5) -and
+                    $metadata.DeletedAtUtc -le [DateTime]::UtcNow.AddSeconds(5)
+                $metadataSizeMatches = $Snapshot.Type -eq 'Directory' -or $metadata.OriginalSize -eq $Snapshot.Bytes
+                $dataMatches =
+                    $dataSnapshot.Type -eq $Snapshot.Type -and
+                    $dataSnapshot.FileCount -eq $Snapshot.FileCount -and
+                    $dataSnapshot.DirectoryCount -eq $Snapshot.DirectoryCount -and
+                    $dataSnapshot.Bytes -eq $Snapshot.Bytes -and
+                    [string]::Equals([string] $dataSnapshot.Fingerprint, [string] $Snapshot.Fingerprint, [StringComparison]::Ordinal)
+                if ($pathMatches -and $timeMatches -and $metadataSizeMatches -and $dataMatches) {
+                    [pscustomobject]@{
+                        MetadataName = $metadataName
+                        DataName = $dataName
+                        Metadata = $metadata
+                        DataSnapshot = $dataSnapshot
+                    }
+                }
+            } catch {
+                return
+            }
+        })
+    }
+
+    return $matchingEvidence
 }
 
 function Get-RecycleBinUsageBytes {
@@ -258,6 +401,7 @@ namespace DeletionSafety
     return [long] [DeletionSafety.NativeRecycleBin]::GetSize($VolumeRoot)
 }
 
+function Invoke-RecycleMain {
 try {
     if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
         Stop-Safely -ErrorCode 'PLATFORM_UNSUPPORTED' -Message 'This helper supports Windows only.'
@@ -291,20 +435,7 @@ try {
     $volumeRoot = [System.IO.Path]::GetPathRoot($normalizedPath)
 
     $targetItem = Get-Item -LiteralPath $normalizedPath -Force -ErrorAction Stop
-    if ($targetItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
-        Stop-Safely -ErrorCode 'TARGET_REPARSE_POINT' -Message 'The target is a reparse point.'
-    }
-
-    $ancestorPath = Split-Path -Parent $targetItem.FullName
-    while (-not [string]::IsNullOrEmpty($ancestorPath)) {
-        $ancestorItem = Get-Item -LiteralPath $ancestorPath -Force -ErrorAction Stop
-        if ($ancestorItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
-            Stop-Safely -ErrorCode 'ANCESTOR_REPARSE_POINT' -Message "An ancestor is a reparse point: $ancestorPath"
-        }
-        $nextAncestor = Split-Path -Parent $ancestorPath
-        if ([string]::Equals($nextAncestor, $ancestorPath, [StringComparison]::OrdinalIgnoreCase)) { break }
-        $ancestorPath = $nextAncestor
-    }
+    Assert-TargetReparseSafe -TargetItem $targetItem
 
     $userProfile = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
     $exactProtectedRoots = @($userProfile) + @($ProtectedRoot)
@@ -344,8 +475,9 @@ try {
         }
     }
 
-    if ($ExpectedFileCount -lt 0 -or $ExpectedDirectoryCount -lt 0 -or $ExpectedBytes -lt 0) {
-        Stop-Safely -ErrorCode 'EXPECTED_SNAPSHOT_INVALID' -Message 'Expected counts and bytes must be non-negative.'
+    if ($ExpectedFileCount -lt 0 -or $ExpectedDirectoryCount -lt 0 -or $ExpectedBytes -lt 0 -or
+        (-not [string]::IsNullOrWhiteSpace($ExpectedMetadataFingerprint) -and $ExpectedMetadataFingerprint -notmatch '^[A-Fa-f0-9]{64}$')) {
+        Stop-Safely -ErrorCode 'EXPECTED_SNAPSHOT_INVALID' -Message 'Expected counts/bytes must be non-negative and the optional metadata fingerprint must be SHA-256.'
     }
     $snapshot = Get-TargetSnapshot -TargetItem $targetItem
     if ($snapshot.Type -ne $ExpectedType) {
@@ -357,6 +489,15 @@ try {
             ActualDirectoryCount = $snapshot.DirectoryCount
             ActualBytes = $snapshot.Bytes
         }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedMetadataFingerprint) -and
+        -not [string]::Equals($ExpectedMetadataFingerprint, [string] $snapshot.Fingerprint, [StringComparison]::OrdinalIgnoreCase)) {
+        Stop-Safely -ErrorCode 'SNAPSHOT_DRIFT' -Message 'The target metadata fingerprint changed after authorization.' -Evidence @{
+            ActualMetadataFingerprint = $snapshot.Fingerprint
+        }
+    }
+    if (-not $ValidateOnly -and [string]::IsNullOrWhiteSpace($ExpectedMetadataFingerprint)) {
+        Stop-Safely -ErrorCode 'EXPECTED_SNAPSHOT_INVALID' -Message 'ExpectedMetadataFingerprint is required for a recycle operation.'
     }
 
     if (-not [Environment]::UserInteractive) {
@@ -453,9 +594,9 @@ try {
 
     $recyclePath = Join-Path $volumeRoot ('$Recycle.Bin\' + $currentIdentity.User.Value)
     try {
-        $metadataBefore = @(Get-RecycleMetadataNames -RecyclePath $recyclePath)
+        $entryNamesBefore = @(Get-RecycleEntryNames -RecyclePath $recyclePath)
     } catch {
-        Stop-Safely -ErrorCode 'RECYCLE_BIN_UNVERIFIABLE' -Message 'The current user Recycle Bin metadata cannot be read.'
+        Stop-Safely -ErrorCode 'RECYCLE_BIN_UNVERIFIABLE' -Message 'The current user Recycle Bin entries cannot be read.'
     }
 
     $commonEvidence = @{
@@ -464,6 +605,7 @@ try {
         FileCount = $snapshot.FileCount
         DirectoryCount = $snapshot.DirectoryCount
         Bytes = $snapshot.Bytes
+        MetadataFingerprint = $snapshot.Fingerprint
         Identity = $currentIdentity.Name
         Sid = $currentIdentity.User.Value
         SessionId = $currentSessionId
@@ -476,9 +618,34 @@ try {
         Write-ResultAndExit -Status 'VALIDATED' -ErrorCode 'NONE' -Message 'All preflight checks passed; no recycle operation was performed.' -ExitCode 0 -Evidence $commonEvidence
     }
 
-    $operationStartedAtUtc = [DateTime]::UtcNow
     try {
         [void] (Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop)
+    } catch {
+        Stop-Safely -ErrorCode 'RECYCLE_RUNTIME_UNAVAILABLE' -Message 'The Microsoft Recycle Bin runtime could not be loaded.' -Evidence $commonEvidence
+    }
+
+    if (-not (Test-Path -LiteralPath $normalizedPath)) {
+        Stop-Safely -ErrorCode 'TARGET_NOT_FOUND' -Message 'The target disappeared before the recycle operation.' -Evidence $commonEvidence
+    }
+    $finalTargetItem = Get-Item -LiteralPath $normalizedPath -Force -ErrorAction Stop
+    Assert-TargetReparseSafe -TargetItem $finalTargetItem
+    $finalSnapshot = Get-TargetSnapshot -TargetItem $finalTargetItem
+    if (-not (Test-TargetSnapshotSame -Expected $snapshot -Actual $finalSnapshot)) {
+        Stop-Safely -ErrorCode 'SNAPSHOT_DRIFT' -Message 'The target changed after preflight and before the recycle operation.' -Evidence @{
+            AuthorizedFileCount = $snapshot.FileCount
+            AuthorizedDirectoryCount = $snapshot.DirectoryCount
+            AuthorizedBytes = $snapshot.Bytes
+            AuthorizedMetadataFingerprint = $snapshot.Fingerprint
+            ActualType = $finalSnapshot.Type
+            ActualFileCount = $finalSnapshot.FileCount
+            ActualDirectoryCount = $finalSnapshot.DirectoryCount
+            ActualBytes = $finalSnapshot.Bytes
+            ActualMetadataFingerprint = $finalSnapshot.Fingerprint
+        }
+    }
+
+    $operationStartedAtUtc = [DateTime]::UtcNow
+    try {
         if ($snapshot.Type -eq 'Directory') {
             [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory(
                 $normalizedPath,
@@ -506,41 +673,31 @@ try {
     }
 
     try {
-        $beforeSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-        foreach ($metadataName in $metadataBefore) { [void] $beforeSet.Add($metadataName) }
-        $matchingMetadata = @()
-        for ($attempt = 0; $attempt -lt 20 -and $matchingMetadata.Count -eq 0; $attempt++) {
-            if ($attempt -gt 0) { Start-Sleep -Milliseconds 100 }
-            $metadataAfter = @(Get-RecycleMetadataNames -RecyclePath $recyclePath)
-            $newMetadataNames = @($metadataAfter | Where-Object { -not $beforeSet.Contains($_) })
-            $matchingMetadata = @($newMetadataNames | ForEach-Object {
-                $metadataPath = Join-Path $recyclePath $_
-                try {
-                    $metadata = Read-RecycleMetadata -MetadataPath $metadataPath
-                    $pathMatches = Test-PathSame $metadata.OriginalPath $normalizedPath
-                    $timeMatches = $metadata.DeletedAtUtc -ge $operationStartedAtUtc.AddSeconds(-5) -and $metadata.DeletedAtUtc -le [DateTime]::UtcNow.AddSeconds(5)
-                    $sizeMatches = $snapshot.Type -eq 'Directory' -or $metadata.OriginalSize -eq $snapshot.Bytes
-                    if ($pathMatches -and $timeMatches -and $sizeMatches) {
-                        [pscustomobject]@{ Name = $_; Metadata = $metadata }
-                    }
-                } catch {
-                    $null
-                }
-            })
-        }
+        $matchingEvidence = @(Find-NewRecycleEvidence -RecyclePath $recyclePath -EntryNamesBefore $entryNamesBefore -NormalizedPath $normalizedPath -OperationStartedAtUtc $operationStartedAtUtc -Snapshot $snapshot)
     } catch {
         Write-ResultAndExit -Status 'SAFETY_INCIDENT' -ErrorCode 'RECYCLE_EVIDENCE_READ_FAILED' -Message 'The source disappeared but post-operation Recycle Bin evidence could not be read.' -ExitCode 4 -Evidence $commonEvidence
     }
 
-    if ($matchingMetadata.Count -ne 1) {
-        Write-ResultAndExit -Status 'SAFETY_INCIDENT' -ErrorCode 'RECYCLE_EVIDENCE_MISSING' -Message 'The source disappeared but one exact new Recycle Bin metadata record could not be proven.' -ExitCode 4 -Evidence $commonEvidence
+    if ($matchingEvidence.Count -ne 1) {
+        Write-ResultAndExit -Status 'SAFETY_INCIDENT' -ErrorCode 'RECYCLE_EVIDENCE_MISSING' -Message 'The source disappeared but one exact new Recycle Bin metadata/data pair could not be proven.' -ExitCode 4 -Evidence $commonEvidence
     }
 
     $successEvidence = $commonEvidence.Clone()
-    $successEvidence['RecycleMetadataName'] = $matchingMetadata[0].Name
-    $successEvidence['RecycleMetadataVersion'] = $matchingMetadata[0].Metadata.Version
-    $successEvidence['DeletedAtUtc'] = $matchingMetadata[0].Metadata.DeletedAtUtc.ToString('o')
-    Write-ResultAndExit -Status 'RECYCLED_VERIFIED' -ErrorCode 'NONE' -Message 'The source is absent and an exact new current-user Recycle Bin metadata record was verified.' -ExitCode 0 -Evidence $successEvidence
+    $successEvidence['RecycleMetadataName'] = $matchingEvidence[0].MetadataName
+    $successEvidence['RecycleDataName'] = $matchingEvidence[0].DataName
+    $successEvidence['RecycleMetadataVersion'] = $matchingEvidence[0].Metadata.Version
+    $successEvidence['RecycleDataType'] = $matchingEvidence[0].DataSnapshot.Type
+    $successEvidence['RecycleDataFileCount'] = $matchingEvidence[0].DataSnapshot.FileCount
+    $successEvidence['RecycleDataDirectoryCount'] = $matchingEvidence[0].DataSnapshot.DirectoryCount
+    $successEvidence['RecycleDataBytes'] = $matchingEvidence[0].DataSnapshot.Bytes
+    $successEvidence['RecycleDataMetadataFingerprint'] = $matchingEvidence[0].DataSnapshot.Fingerprint
+    $successEvidence['DeletedAtUtc'] = $matchingEvidence[0].Metadata.DeletedAtUtc.ToString('o')
+    Write-ResultAndExit -Status 'RECYCLED_VERIFIED' -ErrorCode 'NONE' -Message 'The source is absent and one exact new current-user Recycle Bin metadata/data pair was verified.' -ExitCode 0 -Evidence $successEvidence
 } catch {
     Write-ResultAndExit -Status 'FAILED' -ErrorCode 'INTERNAL_ERROR' -Message $_.Exception.Message -ExitCode 5
+}
+}
+
+if ($MyInvocation.InvocationName -ne '.') {
+    Invoke-RecycleMain
 }

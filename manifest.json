@@ -1,17 +1,45 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "file-deletion-safety-rules",
+  "version": "1.0.1",
   "displayName": "文件安全删除规则",
   "platform": "windows",
+  "files": {
+    "policy/file-deletion-safety.md": "765BBB9CE9D77BC6B8101C2A6A879A5B877C4E62CA80685E468D4DC89FE5BDC0",
+    "helpers/Recycle-Bin-Only.ps1": "70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A",
+    "adapters/codex.md": "84514BE63A3165BEE02F7ACB14ABD83D9A86931BC8A25878A94DB1610F3D5A5E",
+    "adapters/claude.md": "84514BE63A3165BEE02F7ACB14ABD83D9A86931BC8A25878A94DB1610F3D5A5E",
+    "adapters/opencode.md": "84514BE63A3165BEE02F7ACB14ABD83D9A86931BC8A25878A94DB1610F3D5A5E",
+    "scripts/Install-FileDeletionSafetyRules.ps1": "91A39583A7D802DD9F0FB6D20F5E416567D08A15D8066113B025B7877AEA30A3",
+    "scripts/Uninstall-FileDeletionSafetyRules.ps1": "DC6F9806972DB9FFB9714AF4D4BE29D58514DAFA4369EA4328A99E117EFA2B4B",
+    "scripts/Verify-FileDeletionSafetyRules.ps1": "A6A8893A055CBC3A401B66D90FD282305D155FBAA4A01B3D0ACF3AF111ED762A"
+  },
   "sharedInstallDirectory": ".agents",
   "policy": {
     "source": "policy/file-deletion-safety.md",
-    "installedName": "file-deletion-safety.md"
+    "installedName": "file-deletion-safety.md",
+    "sha256": "765BBB9CE9D77BC6B8101C2A6A879A5B877C4E62CA80685E468D4DC89FE5BDC0"
   },
   "helper": {
     "source": "helpers/Recycle-Bin-Only.ps1",
     "installedName": "Recycle-Bin-Only.ps1",
-    "sha256": "AF7E87EC8E5B6160E85A2E8EB069DF23D6A91B6BE81E8B434F36FCF516867128"
+    "sha256": "70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A"
+  },
+  "unsupportedUnmanagedHeadings": [
+    "## 0.1 删除保护",
+    "## 0.1 文件安全删除规则会话开关",
+    "## 文件安全删除规则会话开关"
+  ],
+  "legacyReceiptlessInstallations": [
+    {
+      "version": "1.0.0",
+      "policySha256": "D477A246B6B25B2619E1CD2792CEAF1851450DC2FB79AB4F5FC288023FC99614",
+      "helperSha256": "AF7E87EC8E5B6160E85A2E8EB069DF23D6A91B6BE81E8B434F36FCF516867128",
+      "unmanagedAdapterSha256": "318EEC7CE229B13BF02C669C6F80F09AA30313F969384AA5BFC4CA61B428F26B"
+    }
+  ],
+  "receipt": {
+    "installedName": "file-deletion-safety-rules.install.json"
   },
   "managedMarkers": {
     "begin": "<!-- FILE-DELETION-SAFETY-RULES:BEGIN -->",

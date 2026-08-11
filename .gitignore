@@ -1,3 +1,4 @@
 *.bak-*-file-deletion-safety-rules
 .test-profile/
+.deletion-quarantine/
 verification-output/
