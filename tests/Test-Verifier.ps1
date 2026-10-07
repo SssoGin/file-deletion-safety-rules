@@ -65,6 +65,7 @@ function New-InstalledProfile {
 }
 
 $packageRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$packageVersion = [string] (Get-Content -Raw -LiteralPath (Join-Path $packageRoot 'manifest.json') -Encoding utf8 | ConvertFrom-Json).version
 $installerPath = Join-Path $packageRoot 'scripts\Install-FileDeletionSafetyRules.ps1'
 $verifierPath = Join-Path $packageRoot 'scripts\Verify-FileDeletionSafetyRules.ps1'
 $testRoot = Join-Path $packageRoot '.test-profile\verifier'
@@ -73,7 +74,7 @@ $testRoot = Join-Path $packageRoot '.test-profile\verifier'
 $validProfile = New-InstalledProfile -TestRoot $testRoot -InstallerPath $installerPath
 $validResult = Invoke-PowerShellFile -LiteralPath $verifierPath -Arguments @('-Tool', 'All', '-UserProfileRoot', $validProfile)
 $valid = Convert-ResultJson -ProcessResult $validResult
-Assert-True -Condition ($validResult.ExitCode -eq 0 -and $valid.Passed -and $valid.PackageVersion -eq '1.0.1') -Message 'A valid installation did not verify with its package version.'
+Assert-True -Condition ($validResult.ExitCode -eq 0 -and $valid.Passed -and $valid.PackageVersion -eq $packageVersion) -Message 'A valid installation did not verify with its package version.'
 
 $policyProfile = New-InstalledProfile -TestRoot $testRoot -InstallerPath $installerPath
 $policyPath = Join-Path $policyProfile '.agents\file-deletion-safety.md'
@@ -93,8 +94,9 @@ Assert-True -Condition ($adapterResult.ExitCode -ne 0 -and -not $adapterVerifica
 
 $receiptProfile = New-InstalledProfile -TestRoot $testRoot -InstallerPath $installerPath
 $receiptPath = Join-Path $receiptProfile '.agents\file-deletion-safety-rules.install.json'
-$receiptText = Get-Content -Raw -LiteralPath $receiptPath -Encoding utf8
-$receiptText = $receiptText.Replace('"PackageVersion": "1.0.1"', '"PackageVersion": "9.9.9"')
+$receiptData = Get-Content -Raw -LiteralPath $receiptPath -Encoding utf8 | ConvertFrom-Json
+$receiptData.PackageVersion = '9.9.9'
+$receiptText = ($receiptData | ConvertTo-Json -Depth 8) + "`n"
 [IO.File]::WriteAllText($receiptPath, $receiptText, [Text.UTF8Encoding]::new($false))
 $receiptResult = Invoke-PowerShellFile -LiteralPath $verifierPath -Arguments @('-Tool', 'All', '-UserProfileRoot', $receiptProfile)
 $receiptVerification = Convert-ResultJson -ProcessResult $receiptResult

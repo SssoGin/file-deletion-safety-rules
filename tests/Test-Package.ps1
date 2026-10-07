@@ -92,7 +92,7 @@ $transactionDocumentation =
     $chineseReadme.Contains('不受支持的未托管删除安全规则') -and
     $chineseReadme.Contains('不能证明发布来源')
 $releaseNotesCandidate =
-    $releaseNotes.Contains('# v1.0.1') -and
+    $releaseNotes.StartsWith('# v' + [string] $manifest.version + ' ', [StringComparison]::Ordinal) -and
     $releaseNotes.Contains('## English') -and
     $releaseNotes.Contains('## 简体中文') -and
     $releaseNotes.Contains($manifest.helper.sha256)
@@ -120,7 +120,7 @@ $manifestFileHashFailures = @($manifest.files.PSObject.Properties | ForEach-Obje
 })
 $manifestIdentity =
     [int] $manifest.schemaVersion -eq 2 -and
-    [string]::Equals([string] $manifest.version, '1.0.1', [StringComparison]::Ordinal) -and
+    [string]::Equals([string] $manifest.version, '1.1.0', [StringComparison]::Ordinal) -and
     [string]::Equals([string] $manifest.name, 'file-deletion-safety-rules', [StringComparison]::Ordinal)
 $policyHashPinned = [string]::Equals($policyHash, [string] $manifest.policy.sha256, [StringComparison]::OrdinalIgnoreCase)
 $policyHelperBinding = $policyText.Contains([string] $manifest.helper.sha256) -and $policyText.Contains('`$R`')
@@ -171,16 +171,14 @@ function Invoke-IsolatedTest {
 }
 
 function Invoke-WindowsPowerShell51ParserTest {
-    param([Parameter(Mandatory)][string] $PackageRoot)
+    param([Parameter(Mandatory)][string[]] $ScriptPaths)
 
-    $escapedRoot = $PackageRoot.Replace("'", "''")
+    $quotedPaths = @($ScriptPaths | ForEach-Object { "'" + $_.Replace("'", "''") + "'" }) -join ', '
     $commandText = @"
 Set-StrictMode -Version 3.0
 `$ErrorActionPreference = 'Stop'
 `$ProgressPreference = 'SilentlyContinue'
-`$packageRoot = '$escapedRoot'
-`$testProfilePrefix = (Join-Path `$packageRoot '.test-profile') + [IO.Path]::DirectorySeparatorChar
-`$scripts = @(Get-ChildItem -LiteralPath `$packageRoot -Recurse -Filter '*.ps1' -File | Where-Object { -not `$_.FullName.StartsWith(`$testProfilePrefix, [StringComparison]::OrdinalIgnoreCase) })
+`$scripts = @(Get-Item -LiteralPath @($quotedPaths))
 `$parserErrors = @()
 foreach (`$script in `$scripts) {
     `$bytes = [IO.File]::ReadAllBytes(`$script.FullName)
@@ -243,7 +241,7 @@ $behaviorTestDefinitions = @(
     [pscustomobject]@{ Path = Join-Path $PSScriptRoot 'Test-ManifestContract.ps1'; ProcessPath = (Get-Process -Id $PID).Path }
 )
 $behaviorTestResults = @($behaviorTestDefinitions | ForEach-Object { Invoke-IsolatedTest -LiteralPath $_.Path -ProcessPath $_.ProcessPath })
-$behaviorTestResults += Invoke-WindowsPowerShell51ParserTest -PackageRoot $packageRoot
+$behaviorTestResults += Invoke-WindowsPowerShell51ParserTest -ScriptPaths @($scripts | ForEach-Object { $_.FullName })
 $behaviorTestFailures = @($behaviorTestResults | Where-Object { $_.ExitCode -ne 0 -or -not [string]::IsNullOrEmpty($_.Stderr) })
 $behaviorTestEvidence = @()
 foreach ($testResult in $behaviorTestResults) {

@@ -78,6 +78,7 @@ function New-InstalledProfile {
 }
 
 $packageRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$packageVersion = [string] (Get-Content -Raw -LiteralPath (Join-Path $packageRoot 'manifest.json') -Encoding utf8 | ConvertFrom-Json).version
 $installerPath = Join-Path $packageRoot 'scripts\Install-FileDeletionSafetyRules.ps1'
 $testRoot = Join-Path $packageRoot '.test-profile\installer'
 [IO.Directory]::CreateDirectory($testRoot) | Out-Null
@@ -96,7 +97,7 @@ Assert-True -Condition (Test-Path -LiteralPath (Join-Path $successProfile '.agen
 $receiptPath = Join-Path $successProfile '.agents\file-deletion-safety-rules.install.json'
 Assert-True -Condition (Test-Path -LiteralPath $receiptPath -PathType Leaf) -Message 'RED: installation receipt is missing.'
 $receipt = Get-Content -Raw -LiteralPath $receiptPath -Encoding utf8 | ConvertFrom-Json -Depth 20
-Assert-True -Condition ($receipt.PackageVersion -eq '1.0.1') -Message 'Installation receipt version is incorrect.'
+Assert-True -Condition ($receipt.PackageVersion -eq $packageVersion) -Message 'Installation receipt version is incorrect.'
 Assert-True -Condition (@($receipt.InstalledTools).Count -eq 1 -and $receipt.InstalledTools[0] -eq 'Codex') -Message 'Installation receipt does not record the installed tool.'
 $idempotentPreviewResult = Invoke-PowerShellFile -LiteralPath $installerPath -Arguments @('-Mode', 'Preview', '-Tool', 'Codex', '-UserProfileRoot', $successProfile)
 $idempotentPreview = Convert-ResultJson -ProcessResult $idempotentPreviewResult

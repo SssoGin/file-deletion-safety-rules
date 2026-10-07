@@ -4,11 +4,13 @@
 
 A portable Windows safety policy package for file deletion operations performed by Codex, Claude, and OpenCode.
 
+Current package version: **1.1.0**.
+
 The package defines three explicit modes:
 
-- Ordinary "delete / clean / remove" requests move confirmed targets to a same-volume quarantine. This is recoverable but does not free disk space.
-- "Move to Recycle Bin" is available only in a real interactive Windows user session where the current identity matches Explorer in the same session and all Recycle Bin evidence can be verified. A metadata fingerprint binds relative paths, types, file lengths, and file last-write timestamps so same-size replacements and renames are detected between validation and execution.
-- "Permanently delete / clean up disk space" requires an exact target list and a separate confirmation. It bypasses the Recycle Bin and cannot be restored by the Agent.
+- Explicit "quarantine" requests move authorized targets to a same-volume quarantine. This is recoverable but does not free disk space.
+- Ordinary "delete / clean / remove" defaults to Recycle Bin. This mode is available only in a real interactive Windows user session where the current identity matches Explorer in the same session and all Recycle Bin evidence can be verified. A metadata fingerprint binds relative paths, types, file lengths, and file last-write timestamps so same-size replacements and renames are detected between validation and execution.
+- "Permanently delete / clean up disk space" requires an exact target list and corresponding confirmation, except for the strictly limited temporary-file exception in policy section 0. It bypasses the Recycle Bin and cannot be restored by the Agent.
 
 ## Cleanup confirmation
 
@@ -27,13 +29,15 @@ The fixed ten-row, two-column Markdown table used for every cleanup confirmation
 | Cleanup result | Expected state after execution |
 | Recovery method | An available restoration or recreation method; otherwise `none` |
 
-Small, medium, and large operations keep this structure. A large operation is split by local volume and cleanup mode rather than hiding targets behind a second document. The confirmation prompt follows the table and is not a card row.
+Small, medium, and large operations keep this structure. Operations may be grouped by purpose with each target volume, mode and recovery location clearly identified rather than hiding targets behind a second document. The confirmation prompt follows the table and is not a card row.
 
-Only normalized top-level absolute target paths are listed; descendant files and directories are summarized by count and size. The Agent does not create a per-cleanup local manifest or replace useful details with an opaque snapshot ID. If a context transition loses the confirmed snapshot, the Agent must scan again and show a new card for confirmation.
+Only normalized top-level absolute target paths are listed; descendant files and directories are summarized by count and size. Optional machine snapshots may support recovery and verification; opaque IDs cannot replace visible scope or establish authorization. Resume only when authorization provenance, scope and current state can be reliably verified; otherwise show the new scope and request confirmation.
 
 A non-file object such as a Git branch uses the same table when this policy applies. Each cell contains the verified facts relevant to that object without imposing a second fixed set of subfields. The recovery method may describe restoration from quarantine, the Recycle Bin, or a backup, or recreation from verified Git or build inputs; it is `none` when no method is available.
 
 Every Junction is resolved before confirmation. If its real target is also selected for cleanup and lies outside every listed top-level directory, that target appears as its own top-level path. A target already covered by a listed top-level directory is summarized once instead of being duplicated. Shared targets remain unchanged when only their Junction entries are removed. An unknown-purpose Junction stops the operation before a confirmable card is shown. Because the Recycle Bin helper rejects all reparse points in or above a target tree, Mode B is unavailable for any Junction-bearing target; Junction handling is limited to a boundary-proven Mode A or Mode C operation.
+
+Authorized recoverable routine edits do not need a separate deletion approval. For Mode A/B, reuse authorization covering exact targets, actions and recovery methods after showing the table. Other permanent deletion requires reviewed scope, except for section 0 temporary files meeting every condition and covered by explicit user authorization. Installing or reading this package does not grant that exception. It excludes non-empty directories, user data, project code, deliverables, credentials and recovery materials, and still requires the table. Retain execution evidence while reporting concise outcomes.
 
 ## Important compatibility boundary
 

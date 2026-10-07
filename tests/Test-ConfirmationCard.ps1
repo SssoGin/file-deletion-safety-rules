@@ -39,6 +39,10 @@ $policyText = Read-StrictUtf8Text -LiteralPath (Join-Path $packageRoot 'policy\f
 $englishReadme = Read-StrictUtf8Text -LiteralPath (Join-Path $packageRoot 'README.md')
 $chineseReadme = Read-StrictUtf8Text -LiteralPath (Join-Path $packageRoot 'README.zh-CN.md')
 
+Assert-Matches -Text $policyText -Pattern '仅在用户明确授权.*有限永久删除例外.*安装或读取本规则不自动产生该授权' -Message 'RED: the distributed policy grants a temporary-file exception without explicit user authorization.'
+Assert-Matches -Text $chineseReadme -Pattern '例外须由用户明确授权.*安装或读取本包不自动产生该授权' -Message 'RED: Chinese README omits the temporary-file authorization boundary.'
+Assert-Matches -Text $englishReadme -Pattern 'covered by explicit user authorization.*Installing or reading this package does not grant that exception' -Message 'RED: English README omits the temporary-file authorization boundary.'
+
 $sectionMatch = [regex]::Match(
     $policyText,
     '(?s)### 2\.2 固定“清理确认”卡\r?\n(?<Body>.*?)\r?\n### 2\.3 '
@@ -88,10 +92,10 @@ Assert-True -Condition (-not $cardSection.Contains('必须以 `### 清理确认`
 Assert-Matches -Text $cardSection -Pattern '不得.*冒号列表' -Message 'RED: policy still permits the non-card colon-list rendering.'
 Assert-Matches -Text $cardSection -Pattern '确认指令.*表格之后.*不属于.*卡片' -Message 'RED: confirmation prompt placement can still mutate the fixed card.'
 Assert-Matches -Text $cardSection -Pattern '顶层目标.*绝对路径.*后代.*汇总' -Message 'RED: top-level path display and descendant aggregation are not defined.'
-Assert-Matches -Text $cardSection -Pattern '不得创建.*本地清单' -Message 'RED: the policy still permits per-cleanup local manifest files.'
+Assert-Matches -Text $cardSection -Pattern '可以按需.*机器可读快照' -Message 'RED: optional recoverable snapshots are not supported.'
 Assert-Matches -Text $cardSection -Pattern '不透明.*快照 ID' -Message 'RED: opaque snapshot IDs can still replace useful confirmation content.'
 Assert-Matches -Text $cardSection -Pattern '上下文.*快照.*无法.*重新.*确认' -Message 'RED: snapshot loss after context change does not force a new confirmation.'
-Assert-Matches -Text $cardSection -Pattern '多个本地卷.*多个模式.*按.*卷.*模式.*拆' -Message 'RED: large mixed cleanups are not split by volume and mode.'
+Assert-Matches -Text $cardSection -Pattern '多个本地卷.*多个模式.*按用途.*卷.*模式.*多张卡' -Message 'RED: large mixed cleanups are not split by volume and mode.'
 Assert-Matches -Text $cardSection -Pattern '清理结果.*执行前.*预计.*执行后.*实际' -Message 'RED: expected and actual cleanup results are not distinguished.'
 Assert-Matches -Text $cardSection -Pattern '恢复方式.*第 10.*隔离.*回收站.*备份.*Git.*无' -Message 'RED: the fixed recovery row does not cover the approved recovery and reconstruction sources.'
 
@@ -112,10 +116,10 @@ Assert-Matches -Text $cardSection -Pattern 'Junction.*数量.*用途.*不展开.
 Assert-Matches -Text $cardSection -Pattern '模式 B.*Junction.*不可用.*不得.*确认卡' -Message 'RED: the policy allows a Junction-bearing target to reach an unsupported Recycle Bin confirmation.'
 
 Assert-Matches -Text $chineseReadme -Pattern '固定十行.*两列 Markdown 表格.*清理确认' -Message 'RED: Chinese README does not explain the fixed ten-row table card.'
-Assert-Matches -Text $chineseReadme -Pattern '不生成.*本地清单' -Message 'RED: Chinese README does not explain the no-local-manifest rule.'
+Assert-Matches -Text $chineseReadme -Pattern '可按需保存机器快照' -Message 'RED: Chinese README does not explain the no-local-manifest rule.'
 Assert-Matches -Text $chineseReadme -Pattern '(?=.*模式 B)(?=.*Junction)(?=.*不可用)' -Message 'RED: Chinese README omits the Recycle Bin Junction boundary.'
 Assert-Matches -Text $englishReadme -Pattern 'fixed ten-row.*two-column Markdown table.*cleanup confirmation' -Message 'RED: English README does not explain the fixed ten-row table card.'
-Assert-Matches -Text $englishReadme -Pattern 'does not create.*local manifest' -Message 'RED: English README does not explain the no-local-manifest rule.'
+Assert-Matches -Text $englishReadme -Pattern 'Optional machine snapshots' -Message 'RED: English README does not explain the no-local-manifest rule.'
 Assert-Matches -Text $englishReadme -Pattern '(?=.*Mode B)(?=.*Junction)(?=.*unavailable)' -Message 'RED: English README omits the Recycle Bin Junction boundary.'
 
 [pscustomobject]@{

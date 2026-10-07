@@ -1,3 +1,35 @@
+# v1.1.0 — Recycle Bin Defaults and Authorization Reuse
+
+## English
+
+- Default ordinary delete, clean and remove requests to the Recycle Bin. Same-volume quarantine now requires an explicit request. Unsupported Recycle Bin environments still stop without changing mode or falling back to permanent deletion.
+- Reuse verified authorization covering exact targets, actions and recovery methods. Showing the fixed ten-row cleanup table does not create an extra approval step when that scope is already authorized.
+- Support a narrowly limited temporary-file exception only under explicit user authorization. Installing the package does not grant it; non-empty directories, user data, project code, deliverables, credentials and recovery materials remain excluded.
+- Allow optional recovery snapshots in authorized task records. Resume only when the authorization source, scope and current state can be verified; snapshots never grant permission themselves.
+- Clarify instruction precedence and routine recoverable editing, and keep detailed execution evidence while presenting concise user-facing outcomes.
+- Publish the same portable policy and adapters for Codex, Claude and OpenCode. Runtime paths are resolved during installation; no personal profile paths, private configuration or installation receipts are included.
+- Update version checks and static policy contracts for this release. Limit Windows PowerShell 5.1 parsing to the package scripts, avoiding traversal of generated test fixtures. The Recycle Bin helper and its execution safeguards are unchanged.
+
+Helper SHA-256: `70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A`.
+
+For an existing installation, run Preview, inspect the exact plan, then Apply with that `PlanSha256` and verify. A user-modified or older incompatible managed block must be reconciled explicitly; the installer does not overwrite it automatically.
+
+## 简体中文
+
+- 普通“删除、清理、移除”默认送入回收站；同卷隔离须明确请求。回收站环境不受支持时仍停止，不自动切换模式或改用永久删除。
+- 复用已核实且覆盖精确目标、动作和恢复方式的授权；范围已有授权时，展示固定十行清理表不再额外产生审批步骤。
+- 有限临时文件例外须由用户明确授权，安装本包不会自动授予；非空目录、用户资料、项目代码、交付物、凭据及恢复材料均被排除。
+- 可在已授权任务记录中按需保存恢复快照；只有授权来源、范围与现状均可核对时才继续，快照本身不产生权限。
+- 明确指令优先级和可恢复常规编辑的边界；保留详细执行证据，面向用户简明报告结果。
+- Codex、Claude 和 OpenCode 共用可移植策略及入口；安装时动态解析路径，包内不包含个人用户目录、私有配置或安装回执。
+- 更新本次发布的版本检查和策略静态契约；Windows PowerShell 5.1 仅解析包内脚本，不遍历生成的测试目录。回收站 helper 及其执行保护保持不变。
+
+Helper SHA-256：`70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A`。
+
+已有安装先运行 Preview，审阅精确计划后用同一 `PlanSha256` 执行 Apply 并验证。用户修改过或与新包不兼容的旧 managed block 须明确协调，安装器不会自动覆盖。
+
+---
+
 # v1.0.1 — Security Hardening
 
 ## English
