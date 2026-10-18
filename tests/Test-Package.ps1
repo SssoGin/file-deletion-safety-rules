@@ -103,6 +103,7 @@ $requiredRuntimeFiles = @(
     'adapters/codex.md',
     'adapters/claude.md',
     'adapters/opencode.md',
+    'adapters/deepseek-harness.md',
     'scripts/Install-FileDeletionSafetyRules.ps1',
     'scripts/Uninstall-FileDeletionSafetyRules.ps1',
     'scripts/Verify-FileDeletionSafetyRules.ps1'
@@ -120,7 +121,7 @@ $manifestFileHashFailures = @($manifest.files.PSObject.Properties | ForEach-Obje
 })
 $manifestIdentity =
     [int] $manifest.schemaVersion -eq 2 -and
-    [string]::Equals([string] $manifest.version, '1.1.0', [StringComparison]::Ordinal) -and
+    [string]::Equals([string] $manifest.version, '1.2.0', [StringComparison]::Ordinal) -and
     [string]::Equals([string] $manifest.name, 'file-deletion-safety-rules', [StringComparison]::Ordinal)
 $policyHashPinned = [string]::Equals($policyHash, [string] $manifest.policy.sha256, [StringComparison]::OrdinalIgnoreCase)
 $policyHelperBinding = $policyText.Contains([string] $manifest.helper.sha256) -and $policyText.Contains('`$R`')

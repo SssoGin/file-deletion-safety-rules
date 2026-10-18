@@ -2,9 +2,9 @@
 
 [English](README.md) | **简体中文**
 
-面向 Windows 上 Codex、Claude 和 OpenCode 的可移植文件删除安全规则包。
+面向 Windows 上 Codex、Claude、OpenCode 和 DeepSeek Harness 的可移植文件删除安全规则包。
 
-当前包版本：**1.1.0**。
+当前包版本：**1.2.0**。
 
 本包提供三种明确模式：
 
@@ -62,7 +62,7 @@ Git 分支等非文件对象在本规则适用时也使用同一张表，各单�
 
 语义明确的同义表达也可以触发，例如“关闭删除规则”“启用安全删除规则”。问句、引用、否定句或意图不明确的表述不得切换状态。
 
-`OFF` 仅适用于当前聊天或会话，不写入磁盘，也不跨 Codex、Claude、OpenCode 或其他 Agent 共享。新会话、切换 Agent 或上下文恢复后状态不明确时自动视为 `ON`。切换只影响尚未开始的操作；系统、平台、权限、项目和其他用户规则仍然有效。
+`OFF` 仅适用于当前聊天或会话，不写入磁盘，也不跨 Codex、Claude、OpenCode、DeepSeek Harness 或其他 Agent 共享。新会话、切换 Agent 或上下文恢复后状态不明确时自动视为 `ON`。切换只影响尚未开始的操作；系统、平台、权限、项目和其他用户规则仍然有效。
 
 ## 目录
 
@@ -72,7 +72,7 @@ README.zh-CN.md                        简体中文说明
 RELEASE_NOTES.md                       双语发布说明
 policy/file-deletion-safety.md       完整策略
 helpers/Recycle-Bin-Only.ps1         固定哈希回收站 helper
-adapters/*.md                        三端全局规则片段
+adapters/*.md                        四端全局规则片段
 scripts/Install-FileDeletionSafetyRules.ps1  预览/安装
 scripts/Verify-FileDeletionSafetyRules.ps1   安装验证
 scripts/Uninstall-FileDeletionSafetyRules.ps1 预览/卸载
@@ -105,7 +105,7 @@ pwsh -NoProfile -File .\scripts\Install-FileDeletionSafetyRules.ps1 -Mode Apply 
 pwsh -NoProfile -File .\scripts\Verify-FileDeletionSafetyRules.ps1 -Tool All
 ```
 
-可将 `All` 改为 `Codex`、`Claude` 或 `OpenCode`。安装器会从当前用户配置目录动态解析路径，不包含发布者的用户名或盘符。
+可将 `All` 改为 `Codex`、`Claude`、`OpenCode` 或 `DeepSeekHarness`。DeepSeek Harness 安装到 `~/.dsh/AGENTS.md`。安装器会从当前用户配置目录动态解析路径，不包含发布者的用户名或盘符。
 
 Preview 与 Apply 之间只要任一计划文件发生变化，Apply 就会在写入前返回 `PLAN_MISMATCH`。多文件操作中途失败时会按相反顺序回滚；原文件保存在 `.file-deletion-safety-rules-backups` 下的事务目录中，失败事务新建的文件也会移到那里，不会永久删除。
 
@@ -136,7 +136,7 @@ $uninstallPreview | ConvertTo-Json -Depth 14
 pwsh -NoProfile -File .\scripts\Uninstall-FileDeletionSafetyRules.ps1 -Mode Apply -Tool All -ExpectedPlanSha256 $uninstallPreview.PlanSha256
 ```
 
-默认只移除本包精确匹配的 managed block。只有确实要同时移除共享 policy、helper 和 receipt 时，才在 Preview 与 Apply 两次命令中都加入 `-RemoveSharedFiles`。三端均无 managed block，且 manifest、receipt、当前文件哈希共同证明所有权时，共享文件才可处理。被移除文件会移动到结果中报告的事务备份，不会永久删除；用户修改过或所有权不明确时卸载停止。
+默认只移除本包精确匹配的 managed block。只有确实要同时移除共享 policy、helper 和 receipt 时，才在 Preview 与 Apply 两次命令中都加入 `-RemoveSharedFiles`。四端均无 managed block，且 manifest、receipt、当前文件哈希共同证明所有权时，共享文件才可处理。被移除文件会移动到结果中报告的事务备份，不会永久删除；用户修改过或所有权不明确时卸载停止。
 
 ## 包验证与发布身份
 
@@ -148,7 +148,7 @@ pwsh -NoProfile -File .\tests\Test-Package.ps1
 
 它会验证全部运行时哈希，用 PowerShell 7 和 Windows PowerShell 5.1 解析包内所有脚本，并在 `.test-profile` 下运行隔离的 helper、安装器、卸载器和验证器 fixture。测试不会使用真实回收站，也不会永久删除 fixture。
 
-`manifest.json` 可以发现 8 个运行时文件的变化，并证明这些文件与当前 manifest 内部一致；但包内哈希一致不能证明发布来源，因为被修改的压缩包可以同时替换文件和记录的哈希。确认来源时，应从本仓库获取包，并另行固定或比对 Git commit 或 Release tag。
+`manifest.json` 可以发现 9 个运行时文件的变化，并证明这些文件与当前 manifest 内部一致；但包内哈希一致不能证明发布来源，因为被修改的压缩包可以同时替换文件和记录的哈希。确认来源时，应从本仓库获取包，并另行固定或比对 Git commit 或 Release tag。
 
 ## 回收站失败时
 

@@ -1,3 +1,31 @@
+# v1.2.0 — DeepSeek Harness Support
+
+## English
+
+- Add DeepSeek Harness as a fourth first-class installation target. Its global instruction file `~/.dsh/AGENTS.md` receives the same managed rule block and shared policy as Codex, Claude and OpenCode.
+- Extend the manifest, installer, uninstaller and verifier to four tools. `All` now covers Codex, Claude, OpenCode and DeepSeekHarness, and the ownership receipt and exact verification include the new target.
+- Keep the complete policy and the Recycle Bin helper unchanged; the helper SHA-256 remains `70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A`.
+- Update the package documentation and tests for the new target. The manifest now pins nine runtime files.
+- Existing installations upgrade through the normal Preview/Apply path: the installer writes the DeepSeek Harness managed block and updates the receipt tool set transactionally.
+
+Helper SHA-256: `70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A`.
+
+For an existing installation, run Preview, inspect the exact plan, then Apply with that `PlanSha256` and verify. A user-modified or older incompatible managed block must be reconciled explicitly; the installer does not overwrite it automatically.
+
+## 简体中文
+
+- 新增 DeepSeek Harness 作为第四个正式安装目标；其全局指令文件 `~/.dsh/AGENTS.md` 使用与 Codex、Claude、OpenCode 相同的 managed block 和共享策略。
+- manifest、安装器、卸载器和验证器同步支持四个工具；`All` 现覆盖 Codex、Claude、OpenCode 和 DeepSeekHarness，安装回执与精确验证包含新目标。
+- 完整策略与回收站 helper 保持不变；helper SHA-256 仍为 `70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A`。
+- 更新包文档与测试；manifest 现固定 9 个运行时文件的哈希。
+- 已有安装按常规 Preview/Apply 路径升级：安装器以事务方式写入 DeepSeek Harness managed block 并更新 receipt 工具集合。
+
+Helper SHA-256：`70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A`。
+
+已有安装先运行 Preview，审阅精确计划后用同一 `PlanSha256` 执行 Apply 并验证。用户修改过或与新包不兼容的旧 managed block 须明确协调，安装器不会自动覆盖。
+
+---
+
 # v1.1.0 — Recycle Bin Defaults and Authorization Reuse
 
 ## English

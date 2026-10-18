@@ -3,7 +3,7 @@ param(
     [ValidateSet('Preview', 'Apply')]
     [string] $Mode = 'Preview',
 
-    [ValidateSet('All', 'Codex', 'Claude', 'OpenCode')]
+    [ValidateSet('All', 'Codex', 'Claude', 'OpenCode', 'DeepSeekHarness')]
     [string[]] $Tool = @('All'),
 
     [string] $UserProfileRoot = [Environment]::GetFolderPath('UserProfile'),
@@ -64,7 +64,7 @@ function Get-SelectedTools {
     param([Parameter(Mandatory)][string[]] $Requested)
 
     if ($Requested -contains 'All') {
-        return @('Codex', 'Claude', 'OpenCode')
+        return @('Codex', 'Claude', 'OpenCode', 'DeepSeekHarness')
     }
     return @($Requested | Select-Object -Unique)
 }
@@ -238,6 +238,7 @@ function Assert-ManifestContract {
         Codex = [pscustomobject]@{ Config = '.codex/AGENTS.md'; Adapter = 'adapters/codex.md' }
         Claude = [pscustomobject]@{ Config = '.claude/CLAUDE.md'; Adapter = 'adapters/claude.md' }
         OpenCode = [pscustomobject]@{ Config = '.config/opencode/AGENTS.md'; Adapter = 'adapters/opencode.md' }
+        DeepSeekHarness = [pscustomobject]@{ Config = '.dsh/AGENTS.md'; Adapter = 'adapters/deepseek-harness.md' }
     }
     $toolProperties = @($Manifest.tools.PSObject.Properties)
     if ($toolProperties.Count -ne $expectedTools.Count) {
@@ -263,6 +264,7 @@ function Assert-ManifestContract {
         'adapters/codex.md',
         'adapters/claude.md',
         'adapters/opencode.md',
+        'adapters/deepseek-harness.md',
         'scripts/Install-FileDeletionSafetyRules.ps1',
         'scripts/Uninstall-FileDeletionSafetyRules.ps1',
         'scripts/Verify-FileDeletionSafetyRules.ps1'
@@ -478,7 +480,7 @@ function New-UninstallPlan {
     $unsupportedUnmanagedHeadings = @(Get-UnsupportedUnmanagedHeadings -Manifest $Manifest)
     $actualInstalledTools = [Collections.Generic.List[string]]::new()
     $adapterResults = [Collections.Generic.List[object]]::new()
-    foreach ($toolName in @('Codex', 'Claude', 'OpenCode')) {
+    foreach ($toolName in @('Codex', 'Claude', 'OpenCode', 'DeepSeekHarness')) {
         $toolSpec = $Manifest.tools.$toolName
         $configPath = Resolve-ChildPath -Root $ProfileRoot -RelativePath ([string] $toolSpec.config) -Label "$toolName.config"
         $configInfo = Get-StrictTextInfo -LiteralPath $configPath

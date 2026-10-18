@@ -2,9 +2,9 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-A portable Windows safety policy package for file deletion operations performed by Codex, Claude, and OpenCode.
+A portable Windows safety policy package for file deletion operations performed by Codex, Claude, OpenCode, and DeepSeek Harness.
 
-Current package version: **1.1.0**.
+Current package version: **1.2.0**.
 
 The package defines three explicit modes:
 
@@ -62,7 +62,7 @@ File deletion safety rules default to `ON` in every new chat or session. You can
 
 Clear equivalent wording is also accepted. Questions, quotations, negated statements, or ambiguous wording must not switch the state.
 
-`OFF` applies only to the current chat or session. It is not written to disk and is not shared across Codex, Claude, OpenCode, or other Agents. A new session, a different Agent, or ambiguous restored context defaults back to `ON`. A switch affects only operations that have not started. System, platform, permission, project, and other user rules remain in force.
+`OFF` applies only to the current chat or session. It is not written to disk and is not shared across Codex, Claude, OpenCode, DeepSeek Harness, or other Agents. A new session, a different Agent, or ambiguous restored context defaults back to `ON`. A switch affects only operations that have not started. System, platform, permission, project, and other user rules remain in force.
 
 ## Package layout
 
@@ -72,7 +72,7 @@ README.zh-CN.md                        Simplified Chinese documentation
 RELEASE_NOTES.md                       Bilingual release notes
 policy/file-deletion-safety.md         Complete policy
 helpers/Recycle-Bin-Only.ps1           Hash-pinned Recycle Bin helper
-adapters/*.md                          Global rule snippets for three tools
+adapters/*.md                          Global rule snippets for four tools
 scripts/Install-FileDeletionSafetyRules.ps1    Preview / install
 scripts/Verify-FileDeletionSafetyRules.ps1     Installation verification
 scripts/Uninstall-FileDeletionSafetyRules.ps1  Preview / uninstall
@@ -105,7 +105,7 @@ pwsh -NoProfile -File .\scripts\Install-FileDeletionSafetyRules.ps1 -Mode Apply 
 pwsh -NoProfile -File .\scripts\Verify-FileDeletionSafetyRules.ps1 -Tool All
 ```
 
-Replace `All` with `Codex`, `Claude`, or `OpenCode` when installing for one tool only. The installer resolves paths from the current user profile and does not contain the publisher's username or drive paths.
+Replace `All` with `Codex`, `Claude`, `OpenCode`, or `DeepSeekHarness` when installing for one tool only. DeepSeek Harness installs into `~/.dsh/AGENTS.md`. The installer resolves paths from the current user profile and does not contain the publisher's username or drive paths.
 
 If any planned file changes between Preview and Apply, Apply returns `PLAN_MISMATCH` before writing. A multi-file failure triggers reverse-order rollback. Existing files are preserved in a transaction directory under `.file-deletion-safety-rules-backups`, and files created by a failed transaction are moved there rather than permanently deleted.
 
@@ -148,7 +148,7 @@ pwsh -NoProfile -File .\tests\Test-Package.ps1
 
 It validates all runtime hashes, parses every package script with PowerShell 7 and Windows PowerShell 5.1, and runs isolated helper, installer, uninstaller, and verifier fixtures under `.test-profile`. It does not use the real Recycle Bin or permanently delete fixtures.
 
-`manifest.json` detects changes to the eight runtime files and proves that they agree with this manifest, but that internal hash agreement does not prove release provenance because a modified archive could replace both a file and its recorded hash. For source identity, obtain the package from this repository and pin or compare the Git commit or release tag separately.
+`manifest.json` detects changes to the nine runtime files and proves that they agree with this manifest, but that internal hash agreement does not prove release provenance because a modified archive could replace both a file and its recorded hash. For source identity, obtain the package from this repository and pin or compare the Git commit or release tag separately.
 
 ## When automatic Recycle Bin mode is unavailable
 
