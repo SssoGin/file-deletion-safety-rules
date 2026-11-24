@@ -104,6 +104,7 @@ $requiredRuntimeFiles = @(
     'adapters/claude.md',
     'adapters/opencode.md',
     'adapters/deepseek-harness.md',
+    'adapters/antigravity.md',
     'scripts/Install-FileDeletionSafetyRules.ps1',
     'scripts/Uninstall-FileDeletionSafetyRules.ps1',
     'scripts/Verify-FileDeletionSafetyRules.ps1'
@@ -121,7 +122,7 @@ $manifestFileHashFailures = @($manifest.files.PSObject.Properties | ForEach-Obje
 })
 $manifestIdentity =
     [int] $manifest.schemaVersion -eq 2 -and
-    [string]::Equals([string] $manifest.version, '1.2.0', [StringComparison]::Ordinal) -and
+    [string]::Equals([string] $manifest.version, '1.2.1', [StringComparison]::Ordinal) -and
     [string]::Equals([string] $manifest.name, 'file-deletion-safety-rules', [StringComparison]::Ordinal)
 $policyHashPinned = [string]::Equals($policyHash, [string] $manifest.policy.sha256, [StringComparison]::OrdinalIgnoreCase)
 $policyHelperBinding = $policyText.Contains([string] $manifest.helper.sha256) -and $policyText.Contains('`$R`')
@@ -210,6 +211,7 @@ if (`$parserErrors.Count -gt 0) {
     $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($commandText))
     $startInfo = [Diagnostics.ProcessStartInfo]::new()
     $startInfo.FileName = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $startInfo.Environment['PSModulePath'] = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\Modules'
     $startInfo.UseShellExecute = $false
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
@@ -239,7 +241,8 @@ $behaviorTestDefinitions = @(
     [pscustomobject]@{ Path = Join-Path $PSScriptRoot 'Test-Installer.ps1'; ProcessPath = (Get-Process -Id $PID).Path },
     [pscustomobject]@{ Path = Join-Path $PSScriptRoot 'Test-Uninstaller.ps1'; ProcessPath = (Get-Process -Id $PID).Path },
     [pscustomobject]@{ Path = Join-Path $PSScriptRoot 'Test-Verifier.ps1'; ProcessPath = (Get-Process -Id $PID).Path },
-    [pscustomobject]@{ Path = Join-Path $PSScriptRoot 'Test-ManifestContract.ps1'; ProcessPath = (Get-Process -Id $PID).Path }
+    [pscustomobject]@{ Path = Join-Path $PSScriptRoot 'Test-ManifestContract.ps1'; ProcessPath = (Get-Process -Id $PID).Path },
+    [pscustomobject]@{ Path = Join-Path $PSScriptRoot 'Test-Antigravity.ps1'; ProcessPath = (Get-Process -Id $PID).Path }
 )
 $behaviorTestResults = @($behaviorTestDefinitions | ForEach-Object { Invoke-IsolatedTest -LiteralPath $_.Path -ProcessPath $_.ProcessPath })
 $behaviorTestResults += Invoke-WindowsPowerShell51ParserTest -ScriptPaths @($scripts | ForEach-Object { $_.FullName })
@@ -258,8 +261,8 @@ foreach ($testResult in $behaviorTestResults) {
     }
 }
 $behaviorCaseCount = [int] (@($behaviorTestEvidence | Where-Object { $null -ne $_.PSObject.Properties['Cases'] } | Measure-Object -Property Cases -Sum).Sum)
-if ($behaviorCaseCount -ne 48) {
-    $behaviorTestFailures += [pscustomobject]@{ Path = 'BehaviorCaseCount'; Expected = 48; Actual = $behaviorCaseCount }
+if ($behaviorCaseCount -ne 56) {
+    $behaviorTestFailures += [pscustomobject]@{ Path = 'BehaviorCaseCount'; Expected = 56; Actual = $behaviorCaseCount }
 }
 
 $checks = @(

@@ -3,7 +3,7 @@ param(
     [ValidateSet('Preview', 'Apply')]
     [string] $Mode = 'Preview',
 
-    [ValidateSet('All', 'Codex', 'Claude', 'OpenCode', 'DeepSeekHarness')]
+    [ValidateSet('All', 'Codex', 'Claude', 'OpenCode', 'DeepSeekHarness', 'Antigravity')]
     [string[]] $Tool = @('All'),
 
     [string] $UserProfileRoot = [Environment]::GetFolderPath('UserProfile'),
@@ -65,7 +65,7 @@ function Get-SelectedTools {
     param([Parameter(Mandatory)][string[]] $Requested)
 
     if ($Requested -contains 'All') {
-        return @('Codex', 'Claude', 'OpenCode', 'DeepSeekHarness')
+        return @('Codex', 'Claude', 'OpenCode', 'DeepSeekHarness', 'Antigravity')
     }
     return @($Requested | Select-Object -Unique)
 }
@@ -300,6 +300,7 @@ function Assert-ManifestContract {
         Claude = [pscustomobject]@{ Config = '.claude/CLAUDE.md'; Adapter = 'adapters/claude.md' }
         OpenCode = [pscustomobject]@{ Config = '.config/opencode/AGENTS.md'; Adapter = 'adapters/opencode.md' }
         DeepSeekHarness = [pscustomobject]@{ Config = '.dsh/AGENTS.md'; Adapter = 'adapters/deepseek-harness.md' }
+        Antigravity = [pscustomobject]@{ Config = '.gemini/GEMINI.md'; Adapter = 'adapters/antigravity.md' }
     }
     $toolProperties = @($Manifest.tools.PSObject.Properties)
     if ($toolProperties.Count -ne $expectedTools.Count) {
@@ -326,6 +327,7 @@ function Assert-ManifestContract {
         'adapters/claude.md',
         'adapters/opencode.md',
         'adapters/deepseek-harness.md',
+        'adapters/antigravity.md',
         'scripts/Install-FileDeletionSafetyRules.ps1',
         'scripts/Uninstall-FileDeletionSafetyRules.ps1',
         'scripts/Verify-FileDeletionSafetyRules.ps1'
@@ -554,7 +556,7 @@ function Get-ValidatedReceipt {
     $installedTools = @($installedToolsProperty.Value | ForEach-Object { [string] $_ })
     $validatedTools = [Collections.Generic.List[string]]::new()
     foreach ($toolName in $installedTools) {
-        if (@('Codex', 'Claude', 'OpenCode', 'DeepSeekHarness') -cnotcontains $toolName -or $validatedTools.Contains($toolName)) {
+        if (@('Codex', 'Claude', 'OpenCode', 'DeepSeekHarness', 'Antigravity') -cnotcontains $toolName -or $validatedTools.Contains($toolName)) {
             throw 'The installation receipt contains an invalid or duplicate tool.'
         }
         $validatedTools.Add($toolName)
@@ -578,7 +580,7 @@ function Get-AdapterInstallStates {
     $beginMarker = [string] $Manifest.managedMarkers.begin
     $endMarker = [string] $Manifest.managedMarkers.end
     $unsupportedHeadings = @(Get-UnsupportedUnmanagedHeadings -Manifest $Manifest)
-    foreach ($toolName in @('Codex', 'Claude', 'OpenCode', 'DeepSeekHarness')) {
+    foreach ($toolName in @('Codex', 'Claude', 'OpenCode', 'DeepSeekHarness', 'Antigravity')) {
         $toolSpec = $Manifest.tools.$toolName
         $configPath = Resolve-ChildPath -Root $ProfileRoot -RelativePath ([string] $toolSpec.config) -Label "$toolName.config"
         $configInfo = Get-StrictTextInfo -LiteralPath $configPath

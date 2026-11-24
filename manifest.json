@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "name": "file-deletion-safety-rules",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "displayName": "文件安全删除规则",
   "platform": "windows",
   "files": {
@@ -11,9 +11,10 @@
     "adapters/claude.md": "BF4E08B559D466CA573E903E8DE0D58698E6F3F0BEE929C7D259DE6B26127422",
     "adapters/opencode.md": "BF4E08B559D466CA573E903E8DE0D58698E6F3F0BEE929C7D259DE6B26127422",
     "adapters/deepseek-harness.md": "BF4E08B559D466CA573E903E8DE0D58698E6F3F0BEE929C7D259DE6B26127422",
-    "scripts/Install-FileDeletionSafetyRules.ps1": "5C5C7B2EE3661A75AAA6851E28CE5EF457768A3F8FB073AE92DF8F987C932EA7",
-    "scripts/Uninstall-FileDeletionSafetyRules.ps1": "4D95989264E592C48688C8517872FAF33A60315B70AAB3A01B3966B44120AA4E",
-    "scripts/Verify-FileDeletionSafetyRules.ps1": "F6F4BAC2D91460FC21A6408D1AFC70D281CE042B65629A96D9D2D4D95C2ED776"
+    "adapters/antigravity.md": "BF4E08B559D466CA573E903E8DE0D58698E6F3F0BEE929C7D259DE6B26127422",
+    "scripts/Install-FileDeletionSafetyRules.ps1": "0588AE22EB49BC4A3A192240A9D1ABF278A458DB11FCD19125A75010B18EF70A",
+    "scripts/Uninstall-FileDeletionSafetyRules.ps1": "0E6F90BC6644A0310B2D28B4BD182A8AB38727DA24F1870958A36914AF22A46B",
+    "scripts/Verify-FileDeletionSafetyRules.ps1": "990EC2071FEEACB31ABB135E6ED6F90B80BC52749F53FDB53571C4E06BD714BA"
   },
   "sharedInstallDirectory": ".agents",
   "policy": {
@@ -62,6 +63,10 @@
     "DeepSeekHarness": {
       "config": ".dsh/AGENTS.md",
       "adapter": "adapters/deepseek-harness.md"
+    },
+    "Antigravity": {
+      "config": ".gemini/GEMINI.md",
+      "adapter": "adapters/antigravity.md"
     }
   }
 }

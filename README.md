@@ -2,9 +2,9 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-A portable Windows safety policy package for file deletion operations performed by Codex, Claude, OpenCode, and DeepSeek Harness.
+A portable Windows safety policy package for file deletion operations performed by Codex, Claude, OpenCode, DeepSeek Harness, and Antigravity.
 
-Current package version: **1.2.0**.
+Current package version: **1.2.1**.
 
 The package defines three explicit modes:
 
@@ -62,7 +62,7 @@ File deletion safety rules default to `ON` in every new chat or session. You can
 
 Clear equivalent wording is also accepted. Questions, quotations, negated statements, or ambiguous wording must not switch the state.
 
-`OFF` applies only to the current chat or session. It is not written to disk and is not shared across Codex, Claude, OpenCode, DeepSeek Harness, or other Agents. A new session, a different Agent, or ambiguous restored context defaults back to `ON`. A switch affects only operations that have not started. System, platform, permission, project, and other user rules remain in force.
+`OFF` applies only to the current chat or session. It is not written to disk and is not shared across Codex, Claude, OpenCode, DeepSeek Harness, Antigravity, or other Agents. A new session, a different Agent, or ambiguous restored context defaults back to `ON`. A switch affects only operations that have not started. System, platform, permission, project, and other user rules remain in force.
 
 ## Package layout
 
@@ -72,7 +72,7 @@ README.zh-CN.md                        Simplified Chinese documentation
 RELEASE_NOTES.md                       Bilingual release notes
 policy/file-deletion-safety.md         Complete policy
 helpers/Recycle-Bin-Only.ps1           Hash-pinned Recycle Bin helper
-adapters/*.md                          Global rule snippets for four tools
+adapters/*.md                          Global rule snippets for five tools
 scripts/Install-FileDeletionSafetyRules.ps1    Preview / install
 scripts/Verify-FileDeletionSafetyRules.ps1     Installation verification
 scripts/Uninstall-FileDeletionSafetyRules.ps1  Preview / uninstall
@@ -105,7 +105,7 @@ pwsh -NoProfile -File .\scripts\Install-FileDeletionSafetyRules.ps1 -Mode Apply 
 pwsh -NoProfile -File .\scripts\Verify-FileDeletionSafetyRules.ps1 -Tool All
 ```
 
-Replace `All` with `Codex`, `Claude`, `OpenCode`, or `DeepSeekHarness` when installing for one tool only. DeepSeek Harness installs into `~/.dsh/AGENTS.md`. The installer resolves paths from the current user profile and does not contain the publisher's username or drive paths.
+Replace `All` with `Codex`, `Claude`, `OpenCode`, `DeepSeekHarness`, or `Antigravity` when installing for one tool only. DeepSeek Harness installs into `~/.dsh/AGENTS.md`. The installer resolves paths from the current user profile and does not contain the publisher's username or drive paths.
 
 If any planned file changes between Preview and Apply, Apply returns `PLAN_MISMATCH` before writing. A multi-file failure triggers reverse-order rollback. Existing files are preserved in a transaction directory under `.file-deletion-safety-rules-backups`, and files created by a failed transaction are moved there rather than permanently deleted.
 
@@ -114,6 +114,14 @@ The installer, uninstaller, and verifier reject any existing reparse point, incl
 Successful installation writes `.agents/file-deletion-safety-rules.install.json`. This receipt binds the package version, policy and helper hashes, and installed tool set. The verifier reconstructs the expected receipt and managed blocks from the current package and requires exact matches.
 
 On reinstall or upgrade, the shared policy, helper, and receipt must normally be either all absent or all present. When present, the installer parses the receipt strictly, requires its policy/helper hashes to match the files on disk, and requires its tool set to match exact current managed blocks. The only receiptless exception is the exact v1.0.0 layout declared in `manifest.json`: both shared files must match the declared v1.0.0 hashes, and ownership must be proven by at least one exact package-managed block or the exact supported unmanaged `0.1` adapter. Every detected supported unmanaged adapter must be selected for migration; it is replaced by one managed block while adjacent content is preserved. The installer then plans the policy/helper update and creates the first receipt transactionally. Any other partial installation, malformed receipt, modified shared file, modified managed block, unknown receiptless pair, or unowned block stops in Preview.
+
+## Antigravity support
+
+Use `-Tool Antigravity` for Antigravity only, or `-Tool All` for all five tools. The adapter installs one managed block into `~/.gemini/GEMINI.md`, a global rule location shared by Antigravity App, CLI and IDE according to the [official rules documentation](https://antigravity.google/docs/rules/).
+
+Existing text, UTF-8 BOM state and newline style are preserved. Other rule files, settings, accounts and credentials are not copied or modified. If Gemini CLI also reads this global file, it may see the same rules. Paths are resolved from the selected user profile; package templates contain no personal absolute paths.
+
+Open a new Antigravity conversation after installation. Exact file and receipt verification confirms installation; it does not prove that every model will obey an instruction. This package does not bypass Antigravity permissions or guarantee that its runtime can access the Windows Recycle Bin. The existing identity, session and recovery-evidence checks still apply.
 
 ## Existing unmanaged rules
 
@@ -148,7 +156,7 @@ pwsh -NoProfile -File .\tests\Test-Package.ps1
 
 It validates all runtime hashes, parses every package script with PowerShell 7 and Windows PowerShell 5.1, and runs isolated helper, installer, uninstaller, and verifier fixtures under `.test-profile`. It does not use the real Recycle Bin or permanently delete fixtures.
 
-`manifest.json` detects changes to the nine runtime files and proves that they agree with this manifest, but that internal hash agreement does not prove release provenance because a modified archive could replace both a file and its recorded hash. For source identity, obtain the package from this repository and pin or compare the Git commit or release tag separately.
+`manifest.json` detects changes to the ten runtime files and proves that they agree with this manifest, but that internal hash agreement does not prove release provenance because a modified archive could replace both a file and its recorded hash. For source identity, obtain the package from this repository and pin or compare the Git commit or release tag separately.
 
 ## When automatic Recycle Bin mode is unavailable
 

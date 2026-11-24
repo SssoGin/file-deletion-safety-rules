@@ -1,3 +1,33 @@
+# v1.2.1 — Antigravity Support
+
+## English
+
+- Add Antigravity as a fifth first-class installation target. `-Tool Antigravity` manages its global `~/.gemini/GEMINI.md`; `-Tool All` now covers all five supported tools.
+- Extend the manifest, installer, uninstaller, verifier and ownership receipt consistently. Existing 1.2.0 four-tool installations can add Antigravity through the reviewed Preview/Apply transaction.
+- Preserve existing Antigravity rules, encoding and newline style. Keep unrelated global rules, settings, accounts and credentials untouched; reject modified blocks, receipt drift and linked profile paths.
+- Pin ten runtime files and add eight isolated Antigravity behavior cases covering installation, idempotence, upgrade, tamper detection, shared-file protection and safe uninstall.
+- Keep the complete deletion policy and Recycle Bin helper unchanged. No real Recycle Bin operation or permanent deletion is needed for the package tests.
+- Document the official shared rule location, the possible Gemini CLI overlap, and the difference between verified installation and model behavior. Templates contain profile-relative paths; private configurations, receipts, backups and test evidence are not distributed.
+
+Helper SHA-256: `70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A`.
+
+Run Preview, review the exact plan, Apply with the same `PlanSha256`, and verify. Open a new Antigravity conversation to load the rule. Recycle Bin support still depends on the host identity, session, volume policy and recovery evidence; no permission bypass or permanent-delete fallback is added.
+
+## 简体中文
+
+- 新增 Antigravity 作为第五个正式安装目标；`-Tool Antigravity` 管理其全局 `~/.gemini/GEMINI.md`，`-Tool All` 现覆盖全部五端。
+- manifest、安装器、卸载器、验证器及所有权回执同步适配；已有 1.2.0 四端安装可通过审阅后的 Preview/Apply 事务加入 Antigravity。
+- 保留 Antigravity 已有规则、编码和换行风格；不修改其他全局规则、设置、账号或凭据，拒绝被修改的规则块、回执漂移和链接路径。
+- 固定 10 个运行时文件哈希，新增 8 个隔离行为用例，覆盖安装、幂等、升级、篡改识别、共享文件保护及安全卸载。
+- 完整删除策略和回收站 helper 保持不变；包测试不需要操作真实回收站或永久删除文件。
+- 补充官方通用入口、可能影响 Gemini CLI 的边界，以及安装验证与模型行为的区别；模板只保存相对用户目录的路径，不分发私有配置、安装回执、备份和测试证据。
+
+Helper SHA-256：`70A676487C3F08480EB4891D09CD85802FD81B06A1B80621D7720B24EAB9212A`。
+
+先运行 Preview、审阅精确计划，再以同一 `PlanSha256` 执行 Apply 并验证。Antigravity 新开会话后加载规则；回收站能力仍受身份、Session、卷策略及恢复证据约束，不增加权限绕过或永久删除回退。
+
+---
+
 # v1.2.0 — DeepSeek Harness Support
 
 ## English
